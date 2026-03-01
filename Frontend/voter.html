@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Voter Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+</head>
+
+<body>
+
+<h2>Voter Panel</h2>
+<button onclick="connectWallet()">Connect Wallet</button>
+
+<hr/>
+
+<h3>Register with PRN</h3>
+<input id="prnInput" placeholder="Enter your PRN"/>
+<button onclick="register()">Register</button>
+
+<hr/>
+
+<h3>Select Election</h3>
+<select id="electionSelect"></select>
+<button onclick="loadElections()">Refresh Elections</button>
+
+<hr/>
+
+<h3>Candidates</h3>
+<button onclick="loadCandidates()">Load Candidates</button>
+<ul id="candidateList"></ul>
+
+<pre id="output"></pre>
+
+<script>
+
+let provider;
+let signer;
+let contract;
+
+const contractAddress = "0xD92AD4fc8682a02E7d3d276069c79b0a36fC4cf6";
+
+const abi = [
+  "function getElectionCount() view returns(uint)",
+  "function getElection(uint) view returns(string,uint,uint)",
+  "function getCandidateCount(uint) view returns(uint)",
+  "function getCandidate(uint,uint) view returns(string,uint)",
+  "function vote(uint,uint)",
+  "function register(bytes32)"
+];
+
+async function connectWallet(){
+  await window.ethereum.request({ method:"eth_requestAccounts" });
+  provider = new ethers.BrowserProvider(window.ethereum);
+  signer = await provider.getSigner();
+  contract = new ethers.Contract(contractAddress, abi, signer);
+  output("Wallet connected");
+}
+
+async function register(){
+  const prn=document.getElementById("prnInput").value;
+  const hashed=ethers.keccak256(ethers.toUtf8Bytes(prn));
+  const tx=await contract.register(hashed);
+  await tx.wait();
+  output("Registered successfully");
+}
+
+async function loadElections(){
+  const count=await contract.getElectionCount();
+  const select=document.getElementById("electionSelect");
+  select.innerHTML="";
+  for(let i=0;i<count;i++){
+    const e=await contract.getElection(i);
+    const opt=document.createElement("option");
+    opt.value=i;
+    opt.text=e[0];
+    select.appendChild(opt);
+  }
+}
+
+async function loadCandidates(){
+  const id=document.getElementById("electionSelect").value;
+  const list=document.getElementById("candidateList");
+  list.innerHTML="";
+  const count=await contract.getCandidateCount(id);
+  for(let i=0;i<count;i++){
+    const c=await contract.getCandidate(id,i);
+    const li=document.createElement("li");
+    li.innerHTML=`${c[0]} | Votes: ${c[1]} 
+      <button onclick="vote(${id},${i})">Vote</button>`;
+    list.appendChild(li);
+  }
+}
+
+async function vote(electionId,candidateId){
+  const tx=await contract.vote(electionId,candidateId);
+  await tx.wait();
+  output("Vote successful");
+}
+
+function output(msg){
+  document.getElementById("output").innerText=msg;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+for autorization use college email 
+like map their account to their college email
+as the email is a unique id it will represent only one guy
+and make it a practice of colleges to implement asking for their private accounts(key) 
+to map it to their email addresses
+
+
+
+(Solution 4 — Biometric + Wallet (Advanced)
+Very strong version:
+Student authenticates via biometric (fingerprint on phone)
+Then signs wallet transaction
+Now sharing becomes nearly impossible.
+)

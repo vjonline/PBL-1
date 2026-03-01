@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+</head>
+
+<body>
+
+<h2>Admin Panel</h2>
+<button onclick="connectWallet()">Connect Wallet</button>
+
+<hr/>
+
+<h3>Create Election</h3>
+<input id="eName" placeholder="Election name"/>
+<input id="start" type="datetime-local"/>
+<input id="end" type="datetime-local"/>
+<button onclick="createElection()">Create Election</button>
+
+<hr/>
+
+<!-- SINGLE PRN -->
+<h3>Whitelist Single PRN</h3>
+<input id="prnInput" placeholder="Enter PRN"/>
+<button onclick="whitelistPRN()">Whitelist</button>
+
+<hr/>
+
+<!-- BULK PRN -->
+<h3>Bulk Whitelist PRNs</h3>
+<textarea id="bulkPRN" rows="6" cols="50"
+placeholder="Enter PRNs separated by commas (e.g. 12345,12346,12347)"></textarea>
+<br><br>
+<button onclick="whitelistBulk()">Upload Bulk PRNs</button>
+
+<hr/>
+
+<h3>Select Election</h3>
+<select id="electionSelect"></select>
+<button onclick="loadElections()">Refresh Elections</button>
+
+<hr/>
+
+<h3>Add Candidate</h3>
+<input id="candidate" placeholder="Candidate name"/>
+<button onclick="addCandidate()">Add Candidate</button>
+
+<hr/>
+
+<h3>Candidates</h3>
+<button onclick="loadCandidates()">Show Candidates</button>
+<ul id="candidateList"></ul>
+
+<pre id="output"></pre>
+
+<script>
+
+let provider;
+let signer;
+let contract;
+
+const contractAddress = "0xD92AD4fc8682a02E7d3d276069c79b0a36fC4cf6";
+
+const abi = [
+  "function createElection(string,uint,uint)",
+  "function getElectionCount() view returns(uint)",
+  "function getElection(uint) view returns(string,uint,uint)",
+  "function addCandidate(uint,string)",
+  "function getCandidateCount(uint) view returns(uint)",
+  "function getCandidate(uint,uint) view returns(string,uint)",
+  "function whitelistPRN(bytes32)",
+  "function whitelistMultiplePRNs(bytes32[])"
+];
+
+async function connectWallet(){
+  await window.ethereum.request({ method:"eth_requestAccounts" });
+  provider = new ethers.BrowserProvider(window.ethereum);
+  signer = await provider.getSigner();
+  contract = new ethers.Contract(contractAddress, abi, signer);
+  output("Admin wallet connected");
+}
+
+function toTimestamp(value){
+  return Math.floor(new Date(value).getTime()/1000);
+}
+
+async function createElection(){
+  const name=document.getElementById("eName").value;
+  const start=toTimestamp(document.getElementById("start").value);
+  const end=toTimestamp(document.getElementById("end").value);
+
+  const tx=await contract.createElection(name,start,end);
+  await tx.wait();
+  output("Election created");
+  loadElections();
+}
+
+async function whitelistPRN(){
+  const prn=document.getElementById("prnInput").value;
+  if(prn==="") return alert("Enter PRN");
+
+  const hashed=ethers.keccak256(ethers.toUtf8Bytes(prn));
+  const tx=await contract.whitelistPRN(hashed);
+  await tx.wait();
+  output("Single PRN whitelisted");
+}
+
+async function whitelistBulk(){
+
+  const input = document.getElementById("bulkPRN").value;
+  if(input==="") return alert("Enter PRNs");
+
+  const prnArray = input.split(",");
+  const hashedArray = [];
+
+  for(let i=0;i<prnArray.length;i++){
+    const clean = prnArray[i].trim();
+    if(clean!==""){
+      const hashed = ethers.keccak256(
+        ethers.toUtf8Bytes(clean)
+      );
+      hashedArray.push(hashed);
+    }
+  }
+
+  const tx = await contract.whitelistMultiplePRNs(hashedArray);
+  await tx.wait();
+
+  output("Bulk PRNs whitelisted successfully");
+}
+
+async function loadElections(){
+  const count = await contract.getElectionCount();
+  const select = document.getElementById("electionSelect");
+  select.innerHTML="";
+  for(let i=0;i<count;i++){
+    const e=await contract.getElection(i);
+    const opt=document.createElement("option");
+    opt.value=i;
+    opt.text=e[0];
+    select.appendChild(opt);
+  }
+}
+
+async function addCandidate(){
+  const id=document.getElementById("electionSelect").value;
+  const name=document.getElementById("candidate").value;
+  const tx=await contract.addCandidate(id,name);
+  await tx.wait();
+  output("Candidate added");
+}
+
+async function loadCandidates(){
+  const id=document.getElementById("electionSelect").value;
+  const list=document.getElementById("candidateList");
+  list.innerHTML="";
+  const count=await contract.getCandidateCount(id);
+  for(let i=0;i<count;i++){
+    const c=await contract.getCandidate(id,i);
+    const li=document.createElement("li");
+    li.innerText=`${c[0]} | Votes: ${c[1]}`;
+    list.appendChild(li);
+  }
+}
+
+function output(msg){
+  document.getElementById("output").innerText=msg;
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 contract Voting {
 
@@ -14,26 +14,29 @@ contract Voting {
         _;
     }
 
-    // ======================
-    // STRUCTS
-    // ======================
-
     struct Candidate {
         string name;
+        uint voteCount;
     }
 
     struct Election {
         string name;
         uint startTime;
         uint endTime;
-        Candidate[] candidates;
+        uint candidateCount;
+        mapping(uint => Candidate) candidates;
+        mapping(bytes32 => bool) hasVoted; // PRN-based voting
     }
 
-    Election[] public elections;
+    uint public electionCount;
+    mapping(uint => Election) private elections;
 
-    // ======================
-    // ELECTION FUNCTIONS
-    // ======================
+    // ===== PRN SYSTEM =====
+
+    mapping(bytes32 => bool) public validPRN;         // Whitelisted PRNs
+    mapping(address => bytes32) public registeredPRN; // Wallet → PRN
+
+    // ===== ADMIN FUNCTIONS =====
 
     function createElection(
         string memory _name,
@@ -41,55 +44,109 @@ contract Voting {
         uint _endTime
     ) public onlyAdmin {
 
-        require(_endTime > _startTime, "Invalid time");
+        require(_startTime < _endTime, "Invalid time range");
 
-        elections.push();
-        Election storage e = elections[elections.length - 1];
+        elections[electionCount].name = _name;
+        elections[electionCount].startTime = _startTime;
+        elections[electionCount].endTime = _endTime;
 
-        e.name = _name;
-        e.startTime = _startTime;
-        e.endTime = _endTime;
+        electionCount++;
     }
 
-    function getElectionCount() public view returns (uint) {
-        return elections.length;
+    function addCandidate(
+        uint _electionId,
+        string memory _name
+    ) public onlyAdmin {
+
+        require(_electionId < electionCount, "Election not found");
+
+        Election storage e = elections[_electionId];
+
+        e.candidates[e.candidateCount] = Candidate(_name, 0);
+        e.candidateCount++;
     }
 
-    function getElection(uint index)
+    function whitelistPRN(bytes32 _hashedPRN) public onlyAdmin {
+        validPRN[_hashedPRN] = true;
+    }
+    function whitelistMultiplePRNs(bytes32[] memory _hashedPRNs) public onlyAdmin {
+    for(uint i = 0; i < _hashedPRNs.length; i++){
+        validPRN[_hashedPRNs[i]] = true;
+    }
+}
+
+    // ===== STUDENT FUNCTIONS =====
+
+    function register(bytes32 _hashedPRN) public {
+
+        require(validPRN[_hashedPRN], "PRN not valid");
+        require(registeredPRN[msg.sender] == 0, "Wallet already registered");
+
+        registeredPRN[msg.sender] = _hashedPRN;
+    }
+
+    function vote(
+        uint _electionId,
+        uint _candidateId
+    ) public {
+
+        require(_electionId < electionCount, "Election not found");
+
+        Election storage e = elections[_electionId];
+
+        require(
+            block.timestamp >= e.startTime &&
+            block.timestamp <= e.endTime,
+            "Election not active"
+        );
+
+        bytes32 prn = registeredPRN[msg.sender];
+
+        require(prn != 0, "Not registered");
+        require(!e.hasVoted[prn], "Already voted");
+        require(_candidateId < e.candidateCount, "Invalid candidate");
+
+        e.candidates[_candidateId].voteCount++;
+        e.hasVoted[prn] = true;
+    }
+
+    // ===== VIEW FUNCTIONS =====
+
+    function getElectionCount() public view returns(uint) {
+        return electionCount;
+    }
+
+    function getElection(uint _electionId)
         public
         view
-        returns (string memory, uint, uint)
+        returns(string memory, uint, uint)
     {
-        Election storage e = elections[index];
+        Election storage e = elections[_electionId];
         return (e.name, e.startTime, e.endTime);
     }
 
-    // ======================
-    // CANDIDATE FUNCTIONS
-    // ======================
-
-    function addCandidate(uint electionId, string memory candidateName)
-        public
-        onlyAdmin
-    {
-        elections[electionId].candidates.push(
-            Candidate(candidateName)
-        );
-    }
-
-    function getCandidateCount(uint electionId)
+    function getCandidateCount(uint _electionId)
         public
         view
-        returns (uint)
+        returns(uint)
     {
-        return elections[electionId].candidates.length;
+        return elections[_electionId].candidateCount;
     }
 
-    function getCandidate(uint electionId, uint candidateIndex)
+    function getCandidate(uint _electionId, uint _candidateId)
         public
         view
-        returns (string memory)
+        returns(string memory, uint)
     {
-        return elections[electionId].candidates[candidateIndex].name;
+        Candidate storage c = elections[_electionId].candidates[_candidateId];
+        return (c.name, c.voteCount);
+    }
+
+    function hasPRNVoted(uint _electionId, bytes32 _hashedPRN)
+        public
+        view
+        returns(bool)
+    {
+        return elections[_electionId].hasVoted[_hashedPRN];
     }
 }
