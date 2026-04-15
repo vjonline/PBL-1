@@ -29,21 +29,26 @@ contract Voting {
         uint candidateCount;
 
         mapping(uint => Candidate) candidates;
-        mapping(bytes32 => bool) hasVoted; // Aadhaar hash -> voted?
+
+        // 🔥 Aadhaar hash → voted?
+        mapping(bytes32 => bool) hasVoted;
     }
 
-    // ======================
-    // STORAGE
-    // ======================
     uint public electionCount;
-
     mapping(uint => Election) private elections;
 
-    // Aadhaar whitelist per election
+    // ======================
+    // 🔥 CORE STORAGE
+    // ======================
+
+    // electionId → aadhaarHash → whitelisted?
     mapping(uint => mapping(bytes32 => bool)) public validVoterId;
 
-    // Wallet -> Aadhaar mapping (per election)
+    // electionId → wallet → aadhaarHash
     mapping(uint => mapping(address => bytes32)) public registeredVoterId;
+
+    // electionId → aadhaarHash → used?
+    mapping(uint => mapping(bytes32 => bool)) public voterIdUsed;
 
     // ======================
     // ADMIN FUNCTIONS
@@ -54,18 +59,20 @@ contract Voting {
         uint _startTime,
         uint _endTime
     ) public onlyAdmin {
+
         require(_startTime < _endTime, "Invalid time");
 
-        elections[electionCount].name = _name;
-        elections[electionCount].startTime = _startTime;
-        elections[electionCount].endTime = _endTime;
+        Election storage e = elections[electionCount];
+
+        e.name = _name;
+        e.startTime = _startTime;
+        e.endTime = _endTime;
 
         electionCount++;
     }
 
     function addCandidate(uint _electionId, string memory _name)
-        public
-        onlyAdmin
+        public onlyAdmin
     {
         Election storage e = elections[_electionId];
 
@@ -77,6 +84,7 @@ contract Voting {
         uint _electionId,
         bytes32[] memory _ids
     ) public onlyAdmin {
+
         for (uint i = 0; i < _ids.length; i++) {
             validVoterId[_electionId][_ids[i]] = true;
         }
@@ -87,23 +95,32 @@ contract Voting {
     // ======================
 
     function register(uint _electionId, bytes32 _hashedId) public {
+
         require(validVoterId[_electionId][_hashedId], "Not whitelisted");
 
-        // Wallet can register only once per election
+        // 🔥 ONE WALLET PER ELECTION
         require(
             registeredVoterId[_electionId][msg.sender] == bytes32(0),
             "Already registered"
         );
 
+        // 🔥 ONE AADHAAR PER ELECTION
+        require(
+            !voterIdUsed[_electionId][_hashedId],
+            "Aadhaar already used"
+        );
+
         registeredVoterId[_electionId][msg.sender] = _hashedId;
+        voterIdUsed[_electionId][_hashedId] = true;
     }
 
     function vote(uint _electionId, uint _candidateId) public {
+
         Election storage e = elections[_electionId];
 
         require(
             block.timestamp >= e.startTime &&
-                block.timestamp <= e.endTime,
+            block.timestamp <= e.endTime,
             "Election not active"
         );
 
@@ -121,9 +138,7 @@ contract Voting {
     // ======================
 
     function hasAlreadyVoted(uint _electionId, address user)
-        public
-        view
-        returns (bool)
+        public view returns(bool)
     {
         bytes32 voterId = registeredVoterId[_electionId][user];
 
@@ -132,45 +147,47 @@ contract Voting {
         return elections[_electionId].hasVoted[voterId];
     }
 
-    function getElectionCount() public view returns (uint) {
+    function isRegistered(uint _electionId, address user)
+        public view returns(bool)
+    {
+        return registeredVoterId[_electionId][user] != bytes32(0);
+    }
+
+    function isWhitelisted(uint _electionId, bytes32 h)
+        public view returns(bool)
+    {
+        return validVoterId[_electionId][h];
+    }
+
+    function getElectionCount() public view returns(uint){
         return electionCount;
     }
 
     function getElection(uint id)
-        public
-        view
-        returns (string memory, uint, uint)
+        public view returns(string memory,uint,uint)
     {
         Election storage e = elections[id];
         return (e.name, e.startTime, e.endTime);
     }
 
-    function getCandidateCount(uint id) public view returns (uint) {
+    function getCandidateCount(uint id)
+        public view returns(uint)
+    {
         return elections[id].candidateCount;
     }
 
-    function getCandidate(uint id, uint cid)
-        public
-        view
-        returns (string memory, uint)
+    function getCandidate(uint id,uint cid)
+        public view returns(string memory,uint)
     {
         Candidate storage c = elections[id].candidates[cid];
         return (c.name, c.voteCount);
     }
 
-    function isRegistered(uint id, address user)
-        public
-        view
-        returns (bool)
-    {
-        return registeredVoterId[id][user] != bytes32(0);
-    }
+    // ======================
+    // 🔥 OPTIONAL (ADMIN TRANSFER)
+    // ======================
 
-    function isWhitelisted(uint id, bytes32 h)
-        public
-        view
-        returns (bool)
-    {
-        return validVoterId[id][h];
+    function transferAdmin(address newAdmin) public onlyAdmin {
+        admin = newAdmin;
     }
 }
