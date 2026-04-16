@@ -230,7 +230,6 @@
     function closeModal() { modalBackdrop.classList.remove("show"); }
     function dismissModal(event) { if (event.target === modalBackdrop) closeModal(); }
 
-<<<<<<< HEAD
     async function connectWallet() {
       if (!window.ethereum) return output("MetaMask was not detected. Install it to continue.", "error", true, "Wallet Required");
       try {
@@ -242,94 +241,6 @@
       } catch (err) {
         console.error(err);
         output("Wallet connection failed. Please approve access and try again.", "error", true, "Connection Failed");
-=======
-<h3>Candidates</h3>
-<button onclick="loadCandidates()">Load Candidates</button>
-<ul id="candidateList"></ul>
-
-<pre id="output"></pre>
-
-<script>
-
-const BASE_URL = "http://localhost:3000";
-
-let provider, signer, contract;
-
-let storedEmail = "";
-let otpTimer = null;
-let timeLeft = 0;
-
-const contractAddress = "0x4CFcFc5edf595EFb354b1756747aE170f4614da5";
-
-const abi = [
-  "function getElectionCount() view returns(uint)",
-  "function getElection(uint) view returns(string,uint,uint)",
-  "function getCandidateCount(uint) view returns(uint)",
-  "function getCandidate(uint,uint) view returns(string,uint)",
-  "function vote(uint,uint)",
-  "function register(uint,bytes32)",
-  "function isRegistered(uint,address) view returns(bool)",
-  "function hasAlreadyVoted(uint,address) view returns(bool)"
-];
-
-// ======================
-async function connectWallet(){
-
-  if(!window.ethereum){
-    return alert("Install MetaMask");
-  }
-
-  try{
-    await window.ethereum.request({ method:"eth_requestAccounts" });
-
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-
-    contract = new ethers.Contract(contractAddress, abi, signer);
-
-    output("✅ Wallet connected");
-
-  }catch(err){
-    console.error(err);
-    output("❌ Wallet connection failed");
-  }
-}
-
-// ======================
-function requireWallet(){
-  if(!contract){
-    alert("Connect wallet first");
-    return false;
-  }
-  return true;
-}
-
-// ======================
-async function loadElections(){
-
-  if(!requireWallet()) return;
-
-  try{
-    const count = await contract.getElectionCount();
-    const select = document.getElementById("electionSelect");
-
-    select.innerHTML = "";
-
-    const now = Math.floor(Date.now() / 1000);
-
-    for(let i=0;i<count;i++){
-      const e = await contract.getElection(i);
-
-      const start = Number(e[1]);
-      const end = Number(e[2]);
-
-      // 🔥 ONLY SHOW ACTIVE
-      if(now >= start && now <= end){
-        const opt = document.createElement("option");
-        opt.value = i;
-        opt.text = `${i} - ${e[0]}`;
-        select.appendChild(opt);
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
       }
     }
 
@@ -405,7 +316,6 @@ async function loadElections(){
       }, 1000);
     }
 
-<<<<<<< HEAD
     async function verifyAndLogin() {
       if (!requireWallet()) return;
       const aadhaar = document.getElementById("voterIdInput").value.trim().toLowerCase();
@@ -428,44 +338,6 @@ async function loadElections(){
         console.error(err);
         output("Verification failed. Please try again.", "error", true, "Verification Failed");
       }
-=======
-    timerEl.innerText = `⏳ OTP expires in ${timeLeft}s`;
-
-    timeLeft--;
-
-  }, 1000);
-}
-
-// ======================
-async function verifyAndLogin(){
-
-  if(!requireWallet()) return;
-
-  const aadhaar = document.getElementById("voterIdInput").value.trim().toLowerCase();
-  const otp = document.getElementById("otpInput").value.trim();
-
-  if(!otp) return output("❌ Enter OTP");
-
-  try{
-    const wallet = await signer.getAddress();
-
-    const res = await fetch(`${BASE_URL}/verify-otp`, {
-  method:"POST",
-  headers:{ "Content-Type":"application/json" },
-  body: JSON.stringify({
-    email: storedEmail,
-    token: otp,
-    aadhaar,
-    wallet,
-    electionId: document.getElementById("electionSelect").value
-  })
-});
-
-    const data = await res.json();
-
-    if(!data.success){
-      return output("❌ " + data.message);
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
     }
 
     async function loadCandidates() {
@@ -521,7 +393,6 @@ async function verifyAndLogin(){
       }
     }
 
-<<<<<<< HEAD
     function output(message, tone = "info", shouldModal = false, modalHeading = "Service Update") {
       setStatus(message, tone);
       if (shouldModal) showModal(modalHeading, message, tone === "warning" ? "info" : tone);
@@ -532,43 +403,5 @@ async function verifyAndLogin(){
       output("Citizen portal ready. Connect your wallet to start the verification workflow.", "info");
     };
   </script>
-=======
-  }catch(err){
-    console.error(err);
-    output("❌ Failed to load candidates");
-  }
-}
-
-// ======================
-async function vote(electionId, candidateId){
-
-  try{
-    const voted = await contract.hasAlreadyVoted(electionId, await signer.getAddress());
-
-    if(voted){
-      return output("❌ Already voted");
-    }
-
-    const tx = await contract.vote(electionId, candidateId);
-    await tx.wait();
-
-    output("✅ Vote successful");
-
-    await loadCandidates();
-
-  }catch(err){
-    console.error(err);
-    output("❌ " + (err.reason || "Transaction failed"));
-  }
-}
-
-// ======================
-function output(msg){
-  document.getElementById("output").innerText = msg;
-}
-
-</script>
-
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
 </body>
 </html>
