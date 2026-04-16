@@ -1,27 +1,23 @@
-  const express = require("express");
-  const cors = require("cors");
-  const bodyParser = require("body-parser");
-  const { createClient } = require("@supabase/supabase-js");
-  const { ethers } = require("ethers");
+require("dotenv").config();
 
-  const app = express();
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const { createClient } = require("@supabase/supabase-js");
+const { ethers } = require("ethers");
 
-  app.use(cors({ origin: "*" }));
-  app.use(bodyParser.json());
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-  /* ======================
-    SUPABASE
-  ====================== */
-  const supabase = createClient(
-    "https://sdrbzhrypzsruvekhnst.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcmJ6aHJ5cHpzcnV2ZWtobnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MzM0OTAsImV4cCI6MjA5MTEwOTQ5MH0.a3Kj_Pva5oswKIf1hwEucslkKeOUJnnDCYxKB-gDhWg"
-  );
+// ======================
+// SUPABASE CONFIG
+// ======================
+const SUPABASE_URL = "https://sdrbzhrypzsruvekhnst.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcmJ6aHJ5cHpzcnV2ZWtobnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MzM0OTAsImV4cCI6MjA5MTEwOTQ5MH0.a3Kj_Pva5oswKIf1hwEucslkKeOUJnnDCYxKB-gDhWg";
 
-  /* ======================
-    BLOCKCHAIN
-  ====================== */
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<<<<<<< HEAD
 // ======================
 // BLOCKCHAIN CONFIG
 // ======================
@@ -29,170 +25,162 @@ const RPC_URL = "http://127.0.0.1:7545"; // or your network
 const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
 const contractAddress = "0x2b88aCf06E89787B73e8182Dc3Ea2330A5d4FB07";
-=======
-  // 🔥 MUST be Ganache/Hardhat PRIVATE KEY
-  const ADMIN_PRIVATE_KEY = "0xac5b546493e463eb0c09f37401f1774fe80c3d3eb7429849f2c71670983c2e05";
 
-  const provider = new ethers.providers.JsonRpcProvider(
-    "http://127.0.0.1:7545"
-  );
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
+const abi = [
+  "function isWhitelisted(uint,bytes32) view returns(bool)"
+];
 
-  const adminWallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
+const contract = new ethers.Contract(contractAddress, abi, provider);
 
-  // 🔥 your deployed contract address
-  const contractAddress = "0x4CFcFc5edf595EFb354b1756747aE170f4614da5";
+// ======================
+// SEND OTP
+// ======================
+app.post("/send-otp", async (req, res) => {
+  try {
+    let { aadhaar, electionId } = req.body;
 
-  const abi = [
-    "function isWhitelisted(uint,bytes32) view returns(bool)",
-    "function registerFromBackend(uint,address,bytes32)"
-  ];
+    if (!aadhaar || electionId === undefined) {
+      return res.json({ success: false, message: "Missing fields" });
+    }
 
-  const contract = new ethers.Contract(
-    contractAddress,
-    abi,
-    adminWallet
-  );
+    const cleanAadhaar = String(aadhaar).trim().toLowerCase();
 
-  /* ======================
-    SEND OTP
-  ====================== */
-  app.post("/send-otp", async (req, res) => {
-    try {
-      const { aadhaar, electionId } = req.body;
-
-<<<<<<< HEAD
     // ======================
     // 🔥 HASH Aadhaar
     // ======================
     const hashed = ethers.utils.keccak256(
       ethers.utils.toUtf8Bytes(cleanAadhaar)
     );
-=======
-      if (!aadhaar || electionId === undefined) {
-        return res.json({ success: false, message: "Missing fields" });
-      }
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
 
-      const clean = String(aadhaar).trim().toLowerCase();
+    // ======================
+    // 🔥 CHECK WHITELIST
+    // ======================
+    const isAllowed = await contract.isWhitelisted(electionId, hashed);
 
-      const hash = ethers.utils.keccak256(
-        ethers.utils.toUtf8Bytes(clean)
-      );
-
-      // 🔥 Check whitelist from blockchain
-      const allowed = await contract.isWhitelisted(electionId, hash);
-
-      if (!allowed) {
-        return res.json({
-          success: false,
-          message: "Not whitelisted"
-        });
-      }
-
-      // 🔥 Fetch user email from DB
-      const { data } = await supabase
-        .from("voters")
-        .select("*")
-        .eq("aadhaar_id", clean);
-
-      if (!data || data.length === 0) {
-        return res.json({
-          success: false,
-          message: "Aadhaar not found"
-        });
-      }
-
-      const user = data[0];
-
-      // 🔥 Send OTP
-      const { error } = await supabase.auth.signInWithOtp({
-        email: user.email,
-        options: { shouldCreateUser: false }
-      });
-
-      if (error) {
-        return res.json({
-          success: false,
-          message: error.message
-        });
-      }
-
-      res.json({
-        success: true,
-        email: user.email
-      });
-
-    } catch (err) {
-      console.error(err);
-      res.json({ success: false, message: "Server error" });
-    }
-  });
-
-  /* ======================
-    VERIFY OTP + REGISTER
-  ====================== */
-  app.post("/verify-otp", async (req, res) => {
-    try {
-      const { email, token, aadhaar, wallet, electionId } = req.body;
-
-      if (!wallet) {
-        return res.json({
-          success: false,
-          message: "Wallet required"
-        });
-      }
-
-      const clean = String(aadhaar).trim().toLowerCase();
-
-      // 🔥 Verify OTP
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: "email"
-      });
-
-      if (error) {
-        return res.json({
-          success: false,
-          message: error.message
-        });
-      }
-
-      // 🔥 Hash Aadhaar
-      const hash = ethers.utils.keccak256(
-        ethers.utils.toUtf8Bytes(clean)
-      );
-
-      // 🔥 Register on blockchain (ADMIN signs this)
-      const tx = await contract.registerFromBackend(
-        electionId,
-        wallet,
-        hash
-      );
-
-      await tx.wait();
-
-      res.json({ success: true });
-
-    } catch (err) {
-      console.error(err);
-
-      if (err.reason) {
-        return res.json({
-          success: false,
-          message: err.reason
-        });
-      }
-
-      res.json({
+    if (!isAllowed) {
+      return res.json({
         success: false,
-        message: "Server error"
+        message: "You are not whitelisted for this election"
       });
     }
-  });
 
-<<<<<<< HEAD
+    // ======================
+    // DB CHECK
+    // ======================
+    const { data, error } = await supabase
+      .from("voters")
+      .select("*")
+      .eq("aadhaar_id", cleanAadhaar);
+
+    if (error) {
+      console.error(error);
+      return res.json({ success: false, message: "Database error" });
+    }
+
+    if (!data || data.length === 0) {
+      return res.json({ success: false, message: "Aadhaar not found" });
+    }
+
+    const user = data[0];
+
+    // ======================
+    // OTP COOLDOWN (30s)
+    // ======================
+    if (user.otp_created_at) {
+      const last = new Date(user.otp_created_at).getTime();
+
+      if (Date.now() - last < 30000) {
+        const remaining = Math.ceil(
+          (30000 - (Date.now() - last)) / 1000
+        );
+
+        return res.json({
+          success: false,
+          message: `For security purposes, you can only request this after ${remaining} seconds.`
+        });
+      }
+    }
+
+    // ======================
+    // SEND OTP
+    // ======================
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: user.email,
+      options: {
+        shouldCreateUser: false
+      }
+    });
+
+    if (otpError) {
+      console.error(otpError);
+      return res.json({ success: false, message: otpError.message });
+    }
+
+    // ======================
+    // STORE TIMESTAMP
+    // ======================
+    await supabase
+      .from("voters")
+      .update({
+        otp_created_at: new Date().toISOString()
+      })
+      .eq("aadhaar_id", cleanAadhaar);
+
+    res.json({
+      success: true,
+      email: user.email
+    });
+
+  } catch (err) {
+    console.error("Send OTP error:", err);
+    res.json({ success: false, message: "Server error" });
+  }
+});
+
+// ======================
+// VERIFY OTP
+// ======================
+app.post("/verify-otp", async (req, res) => {
+  try {
+    let { email, token, aadhaar, wallet } = req.body;
+
+    if (!wallet) {
+      return res.json({ success: false, message: "Wallet required" });
+    }
+
+    const cleanAadhaar = String(aadhaar).trim().toLowerCase();
+
+    const { data, error } = await supabase
+      .from("voters")
+      .select("*")
+      .eq("aadhaar_id", cleanAadhaar);
+
+    if (error) {
+      console.error(error);
+      return res.json({ success: false, message: "Database error" });
+    }
+
+    if (!data || data.length === 0) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    // ======================
+    // VERIFY OTP
+    // ======================
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email"
+    });
+
+    if (verifyError) {
+      console.error(verifyError);
+      return res.json({
+        success: false,
+        message: verifyError.message
+      });
+    }
+
     // ======================
     // UPDATE USER
     // ======================
@@ -217,9 +205,3 @@ const contractAddress = "0x2b88aCf06E89787B73e8182Dc3Ea2330A5d4FB07";
 app.listen(3000, () => {
   console.log("🚀 Backend running on http://localhost:3000");
 });
-=======
-  /* ====================== */
-  app.listen(3000, () => {
-    console.log("🚀 Backend running on http://localhost:3000");
-  });
->>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
