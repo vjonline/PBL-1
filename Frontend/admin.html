@@ -206,68 +206,53 @@
     </div>
   </div>
 
-  <script>
-    let provider, signer, contract;
-    const contractAddress = "0x2b88aCf06E89787B73e8182Dc3Ea2330A5d4FB07";
-    const abi = [
-      "function createElection(string,uint,uint)",
-      "function getElectionCount() view returns(uint)",
-      "function getElection(uint) view returns(string,uint,uint)",
-      "function addCandidate(uint,string)",
-      "function getCandidateCount(uint) view returns(uint)",
-      "function getCandidate(uint,uint) view returns(string,uint)",
-      "function whitelistMultipleVoterIds(uint,bytes32[])"
-    ];
-    const modalBackdrop = document.getElementById("modalBackdrop");
-    const modalBadge = document.getElementById("modalBadge");
-    const modalTitle = document.getElementById("modalTitle");
-    const modalMessage = document.getElementById("modalMessage");
-    const statusBanner = document.getElementById("statusBanner");
+<script>
 
-    function setStatus(message, tone = "info") {
-      statusBanner.textContent = message;
-      statusBanner.className = `status-banner ${tone}`;
-    }
-    function describeError(err, action = "complete this action") {
-      const message = String(err?.shortMessage || err?.reason || err?.message || "");
-      if (message.includes("Failed to fetch") || message.includes("could not coalesce error")) {
-        return "MetaMask could not reach the selected blockchain RPC. Start Ganache, confirm MetaMask is connected to the Ganache network on port 7545, and verify the contract address matches the latest deployment.";
-      }
-      if (message.includes("missing revert data")) {
-        return "The transaction was rejected by the network or contract. Confirm you are connected with the admin wallet and that the contract address belongs to the currently running Ganache chain.";
-      }
-      return message || `Unable to ${action}.`;
-    }
-    function showModal(title, message, tone = "info") {
-      modalTitle.textContent = title;
-      modalMessage.textContent = message;
-      modalBadge.textContent = tone === "success" ? "Verified" : tone === "error" ? "Alert" : "Notice";
-      modalBadge.className = `modal-badge ${tone}`;
-      modalBackdrop.classList.add("show");
-    }
-    function closeModal() { modalBackdrop.classList.remove("show"); }
-    function dismissModal(event) { if (event.target === modalBackdrop) closeModal(); }
+let provider, signer, contract;
 
-    async function connectWallet() {
-      try {
-        await window.ethereum.request({ method:"eth_requestAccounts" });
-        provider = new ethers.BrowserProvider(window.ethereum);
-        signer = await provider.getSigner();
-        contract = new ethers.Contract(contractAddress, abi, signer);
-        output("Secure administrator wallet connected successfully.", "success", true, "Wallet Verified");
-      } catch (err) {
-        console.error(err);
-        output(describeError(err, "connect the wallet"), "error", true, "Connection Failed");
-      }
-    }
-    function requireWallet() {
-      if (!contract) {
-        output("Connect the authorized wallet before using administrative functions.", "warning", true, "Authorization Required");
-        return false;
-      }
-      return true;
-    }
-    function toTimestamp(val) { return Math.floor(new Date(val).getTime() / 1000); }
+const contractAddress = "0x0483DA68456E644fdBE922813B47aC0B29a874C3";
+
+const abi = [
+  "function createElection(string,uint,uint)",
+  "function getElectionCount() view returns(uint)",
+  "function getElection(uint) view returns(string,uint,uint)",
+  "function addCandidate(uint,string)",
+  "function getCandidateCount(uint) view returns(uint)",
+  "function getCandidate(uint,uint) view returns(string,uint)",
+  "function whitelistMultipleVoterIds(uint,bytes32[])"
+];
+
+// ======================
+async function connectWallet(){
+  try{
+    await window.ethereum.request({ method:"eth_requestAccounts" });
+
+    provider = new ethers.BrowserProvider(window.ethereum);
+    signer = await provider.getSigner();
+
+    contract = new ethers.Contract(contractAddress, abi, signer);
+
+    output("✅ Wallet connected");
+
+  }catch(err){
+    console.error(err);
+    output("❌ Wallet connection failed");
+  }
+}
+
+// ======================
+function requireWallet(){
+  if(!contract){
+    alert("Connect wallet first");
+    return false;
+  }
+  return true;
+}
+
+// ======================
+function toTimestamp(val){
+  return Math.floor(new Date(val).getTime()/1000);
+}
 
     async function createElection() {
       if (!requireWallet()) return;

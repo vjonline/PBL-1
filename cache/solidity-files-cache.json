@@ -1,9 +1,15 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
+<<<<<<< HEAD
     "D:\\Documents\\PBL-1 Stuff\\PBL-1\\contracts\\Voting.sol": {
       "lastModificationDate": 1776316929589,
       "contentHash": "b54ce5870babb41c122154c8e985f853",
+=======
+    "C:\\Users\\ALOK\\Desktop\\UTKARSH\\Blockchain\\contracts\\Voting.sol": {
+      "lastModificationDate": 1776328144560,
+      "contentHash": "1d2b05e22da08bbee8bd68d37e3055ab",
+>>>>>>> 394e4fbda70129107a8990c3ab067e57daf1cb7a
       "sourceName": "contracts/Voting.sol",
       "solcConfig": {
         "version": "0.8.20",
