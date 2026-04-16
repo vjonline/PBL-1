@@ -21,10 +21,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ======================
 // BLOCKCHAIN CONFIG
 // ======================
-const RPC_URL = "http://127.0.0.1:8545"; // or your network
-const provider = new ethers.JsonRpcProvider(RPC_URL);
+const RPC_URL = "http://127.0.0.1:7545"; // or your network
+const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
-const contractAddress = "YOUR_CONTRACT_ADDRESS";
+const contractAddress = "0x2b88aCf06E89787B73e8182Dc3Ea2330A5d4FB07";
 
 const abi = [
   "function isWhitelisted(uint,bytes32) view returns(bool)"
@@ -48,8 +48,8 @@ app.post("/send-otp", async (req, res) => {
     // ======================
     // 🔥 HASH Aadhaar
     // ======================
-    const hashed = ethers.keccak256(
-      ethers.toUtf8Bytes(cleanAadhaar)
+    const hashed = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes(cleanAadhaar)
     );
 
     // ======================
